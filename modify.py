@@ -9,8 +9,9 @@ import random
 
 print("Start")
 
+# Transformation matrix.
+# For normal transformation, (not z-rotating transformation), both last row and last column must be [0, 0, a] where a > 0.
 TRANSFORM_MATRIX = np.array([[1, 0, 0], [0, 1.5, 0], [0, 0, 1]])
-# Vertical scaling matrix
 
 
 # Index of mesh point
@@ -26,20 +27,15 @@ def normalized_to_pixel_coordinates(
 ) -> Union[None, Tuple[int, int]]:
     """Converts normalized value pair to pixel coordinates."""
 
-    # Checks if the float value is between 0 and 1.
-    def is_valid_normalized_value(value: float) -> bool:
-        return (value > 0 or math.isclose(0, value)) and (
-            value < 1 or math.isclose(1, value)
-        )
+    def limit(value, maximum):
+        if value < 0:
+            value = 0
+        if value > maximum:
+            value = maximum
+        return value
 
-    if not (
-        is_valid_normalized_value(normalized_x)
-        and is_valid_normalized_value(normalized_y)
-    ):
-        # TODO: Draw coordinates even if it's outside of the image bounds.
-        return None
-    x_px = min(math.floor(normalized_x * image_width), image_width - 1)
-    y_px = min(math.floor(normalized_y * image_height), image_height - 1)
+    x_px = limit(math.floor(normalized_x * image_width), image_width - 1)
+    y_px = limit(math.floor(normalized_y * image_height), image_height - 1)
     return x_px, y_px
 
 
@@ -146,7 +142,6 @@ def landmark_to_matrix(landmark):
 
 
 def move_triangle(img1, img2, tri1, tri2):
-
     r1 = cv2.boundingRect(tri1)
     r2 = cv2.boundingRect(tri2)
 
@@ -182,28 +177,33 @@ def move_triangle(img1, img2, tri1, tri2):
     )
 
 
-def get_edges_from_contour(inner_edges):
-    inner_edges = list(inner_edges)
-    current_edge = inner_edges.pop()
-    circular_edges = [current_edge]
-    while len(inner_edges) > 0:
-        _, p = circular_edges[-1]
-        for edge in inner_edges:
+def sort_contour_edge(contour_edges):
+    contour_edges = list(contour_edges)
+    current_edge = contour_edges.pop()
+    sorted_edges = [current_edge]
+    while len(contour_edges) > 0:
+        _, p = sorted_edges[-1]
+        for edge in contour_edges:
             s, e = edge
             if p == s:
-                inner_edges.remove(edge)
-                circular_edges.append((s, e))
+                contour_edges.remove(edge)
+                sorted_edges.append((s, e))
                 break
             elif p == e:
-                inner_edges.remove(edge)
-                circular_edges.append((e, s))
+                contour_edges.remove(edge)
+                sorted_edges.append((e, s))
                 break
         else:
-            if p == circular_edges[0][0]:
+            if p == sorted_edges[0][0]:
                 break
             else:
                 raise Exception("Graph is not closed")
+    return sorted_edges
 
+
+def get_edges_from_contour(contour_edges):
+
+    circular_edges = sort_contour_edge(contour_edges)
     orderd_points = []
     for s, _ in circular_edges:
         orderd_points.append(s)
@@ -232,6 +232,74 @@ def get_edges_from_contour(inner_edges):
             i += 1
         inner_edges.append((a, b))
     return circular_edges + inner_edges
+
+
+def get_outer_faces_from_contour(image, contour_edges, mapping):
+    mapping_size = len(list(mapping))
+    contour_edges = np.array(sort_contour_edge(contour_edges))
+    ordered_points = list(map(lambda x: x[0], contour_edges))
+
+    h, w, _ = image.shape
+    # This points must be ordered.
+    # N should not be too large.
+    # Especially, N*4 < len(contour points).
+    N = 4
+    border_points = (
+        [[(w * i) // N, 0] for i in range(N)]
+        + [[w - 1, (h * i) // N] for i in range(N)]
+        + [[w - 1 - (w * i) // N, h - 1] for i in range(N)]
+        + [[0, h - 1 - (h * i) // N] for i in range(N)]
+    )
+
+    for i in range(len(border_points)):
+        mapping[mapping_size + i] = border_points[i]
+    border_points = np.array(border_points)
+
+    def similarity(s, e, b):
+        ep = np.array(mapping[e])
+        sp = np.array(mapping[s])
+        bp = np.array(mapping[b])
+        center = (ep + sp) / 2
+        direction_of_edge = ep - sp
+        normal_of_edge = np.array([direction_of_edge[1], -direction_of_edge[0]])
+        direction_to_point = bp - center
+        # Cosine similarity
+        dist = (
+            normal_of_edge
+            @ direction_to_point
+            / (np.linalg.norm(normal_of_edge) * np.linalg.norm(direction_to_point))
+        )
+        return dist
+
+    OP = ordered_points
+    M = mapping_size
+    i = 0  # index of contour points
+    j = 0  # index of image border points
+    max_similarity = 0
+    for i in range(len(border_points)):
+        dist = similarity(OP[0], OP[1], M + i)
+        if dist > max_similarity:
+            max_similarity = dist
+            j = i
+    j_init = j
+
+    faces = []
+    NC = len(ordered_points)
+    NB = len(border_points)
+    for i in range(NC):
+        cur_dist = similarity(OP[i], OP[(i + 1) % NC], M + j)
+        next_dist = similarity(OP[i], OP[(i + 1) % NC], M + (j + 1) % NB)
+        if cur_dist > next_dist:
+            faces.append((OP[i], OP[(i + 1) % NC], M + j))
+        else:
+            faces.append((OP[i], M + j, M + (j + 1) % NB))
+            faces.append((OP[i], OP[(i + 1) % NC], M + (j + 1) % NB))
+            j += 1
+        j = j % NB
+    if j != j_init:
+        faces.append((OP[0], j, j_init))
+
+    return faces
 
 
 mp_drawing = mp.solutions.drawing_utils
@@ -288,19 +356,42 @@ with mp_face_mesh.FaceMesh(
                     image, modified_landmark_matrix
                 )
 
-                try:
-                    for i in range(len(faces)):
+                rf1 = get_outer_faces_from_contour(
+                    image, mp_face_mesh.FACEMESH_FACE_OVAL, original_mapping
+                )
+                rf2 = get_outer_faces_from_contour(
+                    image, mp_face_mesh.FACEMESH_FACE_OVAL, modified_mapping
+                )
+
+                full_faces = faces + rf1 + rf2
+
+                for i in range(len(full_faces)):
+                    try:
                         original_points = np.array(
-                            list(map(lambda index: original_mapping[index], faces[i]))
+                            list(
+                                map(
+                                    lambda index: original_mapping[index], full_faces[i]
+                                )
+                            )
                         )
                         modified_points = np.array(
-                            list(map(lambda index: modified_mapping[index], faces[i]))
+                            list(
+                                map(
+                                    lambda index: modified_mapping[index], full_faces[i]
+                                )
+                            )
                         )
                         move_triangle(
                             image, modified_image, original_points, modified_points
                         )
-                except KeyError:
-                    continue
+
+                        # a, b, c = modified_points
+                        # cv2.line(modified_image, a, b, (0, 0, 0), 1)
+                        # cv2.line(modified_image, a, c, (0, 0, 0), 1)
+                        # cv2.line(modified_image, c, b, (0, 0, 0), 1)
+
+                    except KeyError:
+                        continue
 
         cv2.imshow("MediaPipe Face Mesh", modified_image)
         if cv2.waitKey(5) & 0xFF == 27:
