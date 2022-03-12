@@ -1,6 +1,7 @@
 # Mediapipe Face Modification
 
 **CAUTION: 본 프로젝트는 python 3.9 이상에서는 작동하지 않음. python 3.7에서 테스트됨.**
+
 **CAUTION: 반드시 최신 버전의 pip (22.0.4 이상)을 사용하여야 함.**
 
 ## User Instruction
