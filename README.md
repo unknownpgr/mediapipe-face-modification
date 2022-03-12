@@ -2,6 +2,15 @@
 
 **CAUTION: 본 프로젝트는 python 3.9 이상에서는 작동하지 않음. python 3.7에서 테스트됨.**
 
+## User Instruction
+
+- `python3.7 -m venv .venv`
+- `. .venv/bin/activate`
+- `pip install -r requirements.txt`
+- `python modify.py`
+
+## Algorithm
+
 [MediaPipe](https://github.com/google/mediapipe) & OpenCV 기반의 얼굴 변조 스크립트를 작성하였다. `modify.py` 스크립트는 mesh를 바탕으로 다음 과정을 수행한다.
 
 0. 영상 처리를 시작하기 전 mesh 각 포인트의 connection 정보를 바탕으로 mesh를 이루는 각 face(=3개의 edge로 구성되는 한 개의 면)정보를 미리 계산한다. 일반적인 (그래프와는 다르게) mesh는 오직 삼각형으로만 이루어진 plannar graph이므로 embedding이 유일하여 이것이 가능하다.
@@ -16,7 +25,7 @@
 
 5. 사본 이미지를 만든 후, affine transform을 이용하여 mesh의 각 face를 원본에서 사본으로 옮긴다.
 
-# 추가 보완할 부분
+## Limitations
 
 - 현재는 mediapipe에서 눈 부분이 mesh에서 제외되어있어 변형한 후의 얼굴이 어색하다. 그러나 이를 포함하는 것은 매우 간단할 것이다. 눈 부분의 mesh 정보에 대해서는 mediapipe 라이브러리의 `python/solutions/face_mesh.py` 및 `face_mesh_connections.py`를 참조하라.
 
@@ -24,7 +33,7 @@
 
 - 현재 `transform_in_space` 함수는 메시 변형을 위해 행렬을 입력으로 받으며, 따라서 가능한 변환은 오직 선형 변환이다. 그러나 이는 단순히 비선형 변환이 구현하기 번거로워서 그렇게 했을 뿐, matrix 대신 비선형 함수 `f:R³→R³` 를 제공하고 `f((L-O) × T1) × T2 + O` 를 계산함으로써 쉽게 비선형으로 확장이 가능하다. (단 함수의 경우 broadcasting이 구현되지 않으므로 L에 벡터 대신 행렬을 공급할 경우 for 등을 통하여 column-wise로 계산해야만 한다.)
 
-# References
+## References
 
 - https://google.github.io/mediapipe/solutions/face_mesh.html
 - https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.Delaunay.html
