@@ -24,7 +24,7 @@ TRANSFORM_MATRIX = np.array([
 # right   : 50
 # left    : 280
 
-def _normalized_to_pixel_coordinates(
+def normalized_to_pixel_coordinates(
     normalized_x: float, normalized_y: float, image_width: int,
     image_height: int) -> Union[None, Tuple[int, int]]:
   """Converts normalized value pair to pixel coordinates."""
@@ -46,7 +46,7 @@ def landmark_to_pixel_coordinate(image,landmark_list):
   image_rows, image_cols, _ = image.shape
   idx_to_coordinates = {}
   for idx, landmark in enumerate(landmark_list.landmark):
-    landmark_px = _normalized_to_pixel_coordinates(landmark.x, landmark.y,
+    landmark_px = normalized_to_pixel_coordinates(landmark.x, landmark.y,
                                                    image_cols, image_rows)
     if landmark_px:
       idx_to_coordinates[idx] = landmark_px
@@ -56,7 +56,7 @@ def vector_to_pixel_coordinate(image,vector_list):
   image_rows, image_cols, _ = image.shape
   idx_to_coordinates = {}
   for idx, vector in enumerate(vector_list):
-    landmark_px = _normalized_to_pixel_coordinates(vector[0],vector[1], image_cols, image_rows)
+    landmark_px = normalized_to_pixel_coordinates(vector[0],vector[1], image_cols, image_rows)
     if landmark_px:
       idx_to_coordinates[idx] = landmark_px
   return idx_to_coordinates
@@ -139,24 +139,24 @@ def move_triangle(img1, img2, tri1, tri2):
   r2 = cv2.boundingRect(tri2)
 
   # Offset points by left top corner of the respective rectangles
-  tri1Cropped = []
-  tri2Cropped = []
+  tri1_cropped = []
+  tri2_cropped = []
   for i in range(0, 3):
-      tri1Cropped.append(((tri1[i][0] - r1[0]),(tri1[i][1] - r1[1])))
-      tri2Cropped.append(((tri2[i][0] - r2[0]),(tri2[i][1] - r2[1])))
-  tri1Cropped = np.array(tri1Cropped, dtype=np.float32)
-  tri2Cropped = np.array(tri2Cropped, dtype=np.float32)
+      tri1_cropped.append(((tri1[i][0] - r1[0]),(tri1[i][1] - r1[1])))
+      tri2_cropped.append(((tri2[i][0] - r2[0]),(tri2[i][1] - r2[1])))
+  tri1_cropped = np.array(tri1_cropped, dtype=np.float32)
+  tri2_cropped = np.array(tri2_cropped, dtype=np.float32)
 
-  warpMat = cv2.getAffineTransform(tri1Cropped, tri2Cropped)
-  img1Cropped = img1[r1[1]:r1[1] + r1[3], r1[0]:r1[0] + r1[2]]
-  img2Cropped = cv2.warpAffine( img1Cropped, warpMat, (r2[2], r2[3]), None, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101 )
+  warp_mat = cv2.getAffineTransform(tri1_cropped, tri2_cropped)
+  img1_cropped = img1[r1[1]:r1[1] + r1[3], r1[0]:r1[0] + r1[2]]
+  img2_cropped = cv2.warpAffine( img1_cropped, warp_mat, (r2[2], r2[3]), None, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101 )
 
   # Get mask by filling triangle
   mask = np.zeros((r2[3], r2[2], 3))
-  cv2.fillConvexPoly(mask, np.int32(tri2Cropped), (1.0, 1.0, 1.0), 16, 0);
-  img2Cropped = img2Cropped * mask
+  cv2.fillConvexPoly(mask, np.int32(tri2_cropped), (1.0, 1.0, 1.0), 16, 0);
+  img2_cropped = img2_cropped * mask
   img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] = img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] * ( (1.0, 1.0, 1.0) - mask )
-  img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] = img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] + img2Cropped
+  img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] = img2[r2[1]:r2[1]+r2[3], r2[0]:r2[0]+r2[2]] + img2_cropped
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
