@@ -18,6 +18,8 @@
 
 # 추가 보완할 부분
 
-- 현재는 mediapipe에서 눈 부분이 mesh에서 제외되어있다. 그러나 이를 포함하는 것은 매우 간단할 것이다. 눈 부분의 mesh 정보에 대해서는 mediapipe 라이브러리의 `python/solutions/face_mesh.py` 및 `face_mesh_connections.py`를 참조하라.
+- 현재는 mediapipe에서 눈 부분이 mesh에서 제외되어있어 변형한 후의 얼굴이 어색하다. 그러나 이를 포함하는 것은 매우 간단할 것이다. 눈 부분의 mesh 정보에 대해서는 mediapipe 라이브러리의 `python/solutions/face_mesh.py` 및 `face_mesh_connections.py`를 참조하라.
 
-- 추가로 현재는 오직 얼굴 mesh만 변형 부분에 포함되므로 얼굴 외부의 포인트들은 그대로 남아 있고, 따라서 얼굴을 축소하는 경우에는 기존의 얼굴이 그대로 보이게 된다. 그러므로 mesh를 얼굴 외부로 확장할 필요가 있다. 그러기 위해서는 얼굴 mesh의 bouding box나 이미지 자체의 테두리 부분을 mesh 포인트에 포함시킨 후 새로 mesh를 계산하면 된다. 이를 위해서 Delaunay triangulatio을 사용할 수 있으며, `scipy` 라이브러리 에서 이를 제공한다.
+- 추가로 현재는 오직 얼굴 mesh만 변형 부분에 포함되므로 얼굴 외부의 포인트들은 그대로 남아 있고, 따라서 얼굴을 축소하는 경우에는 기존의 얼굴이 그대로 보이게 된다. 그러므로 mesh를 얼굴 외부로 확장할 필요가 있다. 그러기 위해서는 얼굴 mesh의 bouding box나 이미지 자체의 테두리 부분을 mesh 포인트에 포함시킨 후 새로 mesh를 계산하면 된다. 이를 위해서 Delaunay triangulation을 사용할 수 있으며, `scipy` 라이브러리 에서 이를 제공한다.
+
+- 현재 `transform_in_space` 함수는 메시 변형을 위해 행렬을 입력으로 받으며, 따라서 가능한 변환은 오직 선형 변환이다. 그러나 이는 단순히 비선형 변환이 구현하기 번거로워서 그렇게 했을 뿐, matrix 대신 비선형 함수 `f:R³→R³` 를 제공하고 `f((L-O) × T1) × T2 + O` 를 계산함으로써 쉽게 비선형으로 확장이 가능하다. (단 함수의 경우 broadcasting이 구현되지 않으므로 L에 벡터 대신 행렬을 공급할 경우 for 등을 통하여 column-wise로 계산해야만 한다.)
