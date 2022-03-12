@@ -1,6 +1,6 @@
 # Mediapipe Face Modification
 
-**CAUTION: 본 프로젝트는 python 3.9 이상에서는 작동하지 않음. python 3.8에서 테스트됨.**
+**CAUTION: 본 프로젝트는 python 3.9 이상에서는 작동하지 않음. python 3.7에서 테스트됨.**
 
 [MediaPipe](https://github.com/google/mediapipe) & OpenCV 기반의 얼굴 변조 스크립트를 작성하였다. `modify.py` 스크립트는 mesh를 바탕으로 다음 과정을 수행한다.
 
