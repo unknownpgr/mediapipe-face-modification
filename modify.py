@@ -182,12 +182,71 @@ def move_triangle(img1, img2, tri1, tri2):
     )
 
 
+def get_edges_from_contour(inner_edges):
+    inner_edges = list(inner_edges)
+    current_edge = inner_edges.pop()
+    circular_edges = [current_edge]
+    while len(inner_edges) > 0:
+        _, p = circular_edges[-1]
+        for edge in inner_edges:
+            s, e = edge
+            if p == s:
+                inner_edges.remove(edge)
+                circular_edges.append((s, e))
+                break
+            elif p == e:
+                inner_edges.remove(edge)
+                circular_edges.append((e, s))
+                break
+        else:
+            if p == circular_edges[0][0]:
+                break
+            else:
+                raise Exception("Graph is not closed")
+
+    orderd_points = []
+    for s, _ in circular_edges:
+        orderd_points.append(s)
+
+    half_length = len(orderd_points) // 2
+    upper_half = orderd_points[:half_length]
+    lower_half = list(reversed(orderd_points[half_length:]))
+    if len(upper_half) > len(lower_half):
+        upper_half, lower_half = lower_half, upper_half
+
+    i = 0
+    j = 0
+    inner_edges = []
+    while True:
+        if i == j:
+            if j + 1 >= len(upper_half):
+                break
+            a = upper_half[i]
+            b = lower_half[j]
+            j += 1
+        else:
+            if i + 1 >= len(lower_half):
+                break
+            a = upper_half[i]
+            b = lower_half[j]
+            i += 1
+        inner_edges.append((a, b))
+    return circular_edges + inner_edges
+
+
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_face_mesh = mp.solutions.face_mesh
 drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
 
-faces = get_faces_from_connections(mp_face_mesh.FACEMESH_TESSELATION)
+connections = (
+    list(mp_face_mesh.FACEMESH_TESSELATION)
+    + get_edges_from_contour(mp_face_mesh.FACEMESH_LEFT_EYE)
+    + get_edges_from_contour(mp_face_mesh.FACEMESH_RIGHT_EYE)
+    + get_edges_from_contour(mp_face_mesh.FACEMESH_LIPS)
+)
+
+faces = get_faces_from_connections(connections)
 
 COLOR_LIST = [get_random_color() for _ in range(max(len(faces), 486))]
 
